@@ -2,9 +2,10 @@ package main
 
 import (
 	"encoding/csv"
+	"flag"
 	"fmt"
-	"log"
 	"os"
+	"strings"
 )
 
 type Problem struct {
@@ -13,19 +14,17 @@ type Problem struct {
 }
 
 func main() {
-	filepath := "problems.csv"
-	problems, err := readProblemsFrom(filepath)
+	filepath := flag.String("csv", "problems.csv", "a csv file in format of 'question,answer'")
+	flag.Parse()
 
-	if err != nil {
-		log.Fatal(err)
-	}
+	problems := readProblemsFrom(*filepath)
 
 	score := 0
 
-	for _, problem := range problems {
-		fmt.Printf("%s: ", problem.question)
+	for i, problem := range problems {
+		fmt.Printf("Problem #%d - %s: ", i+1, problem.question)
 		var ans string
-		fmt.Scan(&ans)
+		fmt.Scanf("%s\n", &ans)
 
 		if ans == problem.answer {
 			score++
@@ -36,16 +35,14 @@ func main() {
 	fmt.Printf("You scored %v out of %v\n", score, len(problems))
 }
 
-func readProblemsFrom(p string) ([]Problem, error) {
+func readProblemsFrom(p string) []Problem {
 
 	problems := []Problem{}
 
 	f, err := os.Open(p)
-
 	if err != nil {
-		return problems, err
+		exit(fmt.Sprintf("Failed to open the CSV file: %s", p))
 	}
-
 	defer f.Close()
 
 	r := csv.NewReader(f)
@@ -53,15 +50,20 @@ func readProblemsFrom(p string) ([]Problem, error) {
 	records, err := r.ReadAll()
 
 	if err != nil {
-		return problems, err
+		exit(fmt.Sprintf("Failed to parse the CSV file: %s", p))
 	}
 
 	for _, record := range records {
 		problems = append(problems, Problem{
 			question: record[0],
-			answer:   record[1],
+			answer:   strings.TrimSpace(record[1]),
 		})
 	}
 
-	return problems, nil
+	return problems
+}
+
+func exit(msg string) {
+	fmt.Println(msg)
+	os.Exit(1)
 }
