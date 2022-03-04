@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 type Problem struct {
@@ -15,28 +16,37 @@ type Problem struct {
 
 func main() {
 	filepath := flag.String("csv", "problems.csv", "a csv file in format of 'question,answer'")
+	duration := flag.Int64("limit", 30, "timeout for every question in seconds")
 	flag.Parse()
 
 	problems := readProblemsFrom(*filepath)
 
-	score := 0
+	timer := time.NewTimer(time.Duration(*duration) * time.Second)
 
+	score := 0
 	for i, problem := range problems {
 		fmt.Printf("Problem #%d - %s: ", i+1, problem.question)
-		var ans string
-		fmt.Scanf("%s\n", &ans)
+		answerCh := make(chan string)
+		go func() {
+			var ans string
+			fmt.Scanf("%s\n", &ans)
+			answerCh <- ans
+		}()
 
-		if ans == problem.answer {
-			score++
+		select {
+		case <-timer.C:
+			showScoreAndExit(score, len(problems))
+		case ans := <-answerCh:
+			if ans == problem.answer {
+				score++
+			}
 		}
 	}
 
-	fmt.Print("\n\n")
-	fmt.Printf("You scored %v out of %v\n", score, len(problems))
+	showScoreAndExit(score, len(problems))
 }
 
 func readProblemsFrom(p string) []Problem {
-
 	problems := []Problem{}
 
 	f, err := os.Open(p)
@@ -61,6 +71,12 @@ func readProblemsFrom(p string) []Problem {
 	}
 
 	return problems
+}
+
+func showScoreAndExit(score int, total int) {
+	fmt.Print("\n\n")
+	fmt.Printf("You scored %d out of %d\n", score, total)
+	os.Exit(0)
 }
 
 func exit(msg string) {
